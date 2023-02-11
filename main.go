@@ -19,6 +19,8 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
+	"encoding/json"
+	"bytes"
 
 	units "github.com/docker/go-units"
 
@@ -300,7 +302,6 @@ func makeStreamingRequestHandler(watchdogConfig config.WatchdogConfig, prefixLog
 		err := functionInvoker.Run(req)
 		if err != nil {
 			log.Println(err.Error())
-
 			// Cannot write a status code to the client because we
 			// already have written a header
 			done := time.Since(start)
@@ -309,6 +310,31 @@ func makeStreamingRequestHandler(watchdogConfig config.WatchdogConfig, prefixLog
 				return
 			}
 		}
+
+		arg := os.Args[1]
+		log.Println("=============== Calling Provider =================", arg);
+		payload, err := json.Marshal(map[string]interface{} {
+			"function": "my_simple_todo",
+		})
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		client := &http.Client{}
+		url := "http://" + "10.62.0.1" + ":8081/watchdog-info"
+		request, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(payload))
+		request.Header.Set("Content-Type", "application/json")
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		_, err = client.Do(request)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		log.Println("=============== DONE calling =================");
+
 
 		done := time.Since(start)
 		if !strings.HasPrefix(req.UserAgent, "kube-probe") {
